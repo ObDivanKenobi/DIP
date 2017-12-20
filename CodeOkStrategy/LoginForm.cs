@@ -1,4 +1,7 @@
-﻿using CodeOk.Models;
+﻿using CodeOk.Configuration;
+using CodeOk.Models;
+using Ninject;
+using Ninject.Parameters;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,27 +17,38 @@ namespace CodeOk
 {
     public partial class LoginForm : Form
     {
-        UserManager userManager = new UserManager(new List<IValidator<string>> {
-                new NotEmpty("Пароль не может быть пустой строкой"),
-                new AlphanumericOnly("В пароле допустимы только латинские буквы и цифры"),
-                new RequireMinLength(5, "Минимальная длина пароля - 5 символов"),
-                new RestrictMaxLength(20, "Максимальная длина пароля - 20 символов"),
-                new RequireLowercase("Пароль должен содержать хотя бы одну заглавную букву"),
-                new RequireUppercase("Пароль должен содержать хотя бы одну строчную букву"),
-                new RequireNumeric("Пароль должен содержать хотя бы одну цифру")},
-            new List<IValidator<string>> {
-                new NotEmpty("Имя пользователя не может быть пустой строкой"),
-                new AlphanumericOnly("В имени пользователя допустимы только латинские буквы и цифры"),
-                new RequireMinLength(5, "Минимальная длина имени пользователя - 5 символов"),
-                new RequireLowercase("Имя пользователя должно содержать хотя бы одну заглавную букву"),
-                new RequireUppercase("Имя пользователя должно содержать хотя бы одну строчную букву")
-            },
-            new DefaultPasswordHasher(), new FileUserStorage(ConfigurationManager.AppSettings["UserStorage"])
-            );
+        //UserManager userManager = new UserManager(new List<IValidator<string>> {
+        //        new NotEmpty("Пароль не может быть пустой строкой"),
+        //        new AlphanumericOnly("В пароле допустимы только латинские буквы и цифры"),
+        //        new RequireMinLength(5, "Минимальная длина пароля - 5 символов"),
+        //        new RestrictMaxLength(20, "Максимальная длина пароля - 20 символов"),
+        //        new RequireLowercase("Пароль должен содержать хотя бы одну заглавную букву"),
+        //        new RequireUppercase("Пароль должен содержать хотя бы одну строчную букву"),
+        //        new RequireNumeric("Пароль должен содержать хотя бы одну цифру")},
+        //    new List<IValidator<string>> {
+        //        new NotEmpty("Имя пользователя не может быть пустой строкой"),
+        //        new AlphanumericOnly("В имени пользователя допустимы только латинские буквы и цифры"),
+        //        new RequireMinLength(5, "Минимальная длина имени пользователя - 5 символов"),
+        //        new RequireLowercase("Имя пользователя должно содержать хотя бы одну заглавную букву"),
+        //        new RequireUppercase("Имя пользователя должно содержать хотя бы одну строчную букву")
+        //    },
+        //    new DefaultPasswordHasher(), new FileUserStorage(ConfigurationManager.AppSettings["UserStorage"])
+        //    );
+
+        UserManager userManager;
 
         public LoginForm()
         {
             InitializeComponent();
+
+            IKernel ninjectKernel = new StandardKernel(new NinjectConfig());
+
+            var storage = ninjectKernel.Get<IStorage<User>>(new ConstructorArgument("path", ConfigurationManager.AppSettings["UserStorage"]));
+            var hasher = ninjectKernel.Get<IPasswordHasher>();
+            var usernameValidators = ninjectKernel.Get<ICollection<IValidator<string>>>("PasswordValidators");
+            var passwordValidators = ninjectKernel.Get<ICollection<IValidator<string>>>("UserValidators");
+
+            userManager = new UserManager(passwordValidators, usernameValidators, hasher, storage);
         }
 
         private void buttonLogin_Click(object sender, EventArgs e)
